@@ -62,4 +62,33 @@ template <ContiguousByteContainer T>
       std::size(container)));
 }
 
+class Hasher {
+ public:
+  Hasher() noexcept;
+  ~Hasher() noexcept;
+
+  Hasher(const Hasher&) = delete;
+  Hasher& operator=(const Hasher&) = delete;
+
+  Hasher(Hasher&& other) noexcept;
+  Hasher& operator=(Hasher&& other) noexcept;
+
+  [[nodiscard]] std::expected<void, Error> init() noexcept;
+
+  [[nodiscard]] std::expected<void, Error> update(
+      std::span<const uint8_t> data) noexcept;
+
+  [[nodiscard]] inline std::expected<void, Error> update(
+      std::string_view str) noexcept {
+    return update(std::span<const uint8_t>(
+        reinterpret_cast<const uint8_t*>(str.data()), str.size()));
+  }
+
+  [[nodiscard]] std::expected<void, Error> finalize() noexcept;
+
+ private:
+  alignas(8) std::array<uint8_t, 64> b_ctx_storage{};
+  bool b_is_active{false};
+};
+
 }  // namespace bcrypto::sha256
