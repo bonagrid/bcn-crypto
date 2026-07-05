@@ -19,19 +19,47 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <expected>
 #include <span>
+#include <string_view>
 
-namespace bcrypto {
-
-namespace sha256 {
+namespace bcrypto::sha256 {
 
 inline constexpr size_t sha256_size = 32;
 using Sha256Hash = std::array<uint8_t, sha256_size>;
 
-[[nodiscard]] Sha256Hash sha256(std::span<const uint8_t> data);
+enum class Error : int32_t {
+  InitializationFailed,
+  HardwareError,
+  BufferTooSmall,
+  BadState,
+  Unknown
+};
 
-}  // namespace sha256
+[[nodiscard]] std::expected<Sha256Hash, Error> hash(
+    std::span<const uint8_t> data) noexcept;
 
-}  // namespace bcrypto
+[[nodiscard]] inline std::expected<Sha256Hash, Error> hash(
+    std::span<std::string_view> str) noexcept {
+  return hash(std::span<const uint8_t>(
+      reinterpret_cast<const uint8_t*>(str.data()), str.size()));
+}
+
+template <typename T>
+concept ContiguousByteContainer = requires(T container) {
+  { std::data(container) } -> std::contiguous_iterator;
+  sizeof(*std::data(container)) == 1;
+};
+
+template <ContiguousByteContainer T>
+[[nodiscard]] inline std::expected<Sha256Hash, Error> hash(
+    const T& container) noexcept {
+  return hash(std::span<const uint8_t>(
+      reinterpret_cast<const uint8_t*>(std::data(container)),
+      std::size(container)));
+}
+
+}  // namespace bcrypto::sha256
